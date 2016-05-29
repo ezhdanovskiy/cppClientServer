@@ -22,7 +22,9 @@ int main() {
     char str[100];
     while (1) {
         bzero(str, 100);
-        read(comm_fd, str, 100);
+        if (read(comm_fd, str, 100) <= 0) {
+            break;
+        }
 
         printf("Echoing back - %s", str);
         write(comm_fd, str, strlen(str) + 1);
