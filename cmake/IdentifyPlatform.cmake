@@ -1,0 +1,15 @@
+IF (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+    set(PLATFORM_BSD "1")
+ENDIF (${CMAKE_SYSTEM_NAME} MATCHES "FreeBSD")
+
+IF (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+    set(PLATFORM_LINUX "1")
+    find_path(KQUEUE_INCLUDE_DIR sys/event.h PATH_SUFFIXES kqueue HINTS ENV kqueue_include_dir)
+    find_path(KQUEUE_LIB_DIR NAMES libkqueue.so PATH_SUFFIXES lib HINTS ENV kqueue_include_lib)
+    include_directories(${KQUEUE_INCLUDE_DIR})
+    link_directories(${KQUEUE_LIB_DIR})
+ENDIF (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+
+IF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
+    set(PLATFORM_MACOSX "1")
+ENDIF (${CMAKE_SYSTEM_NAME} MATCHES "Darwin")
