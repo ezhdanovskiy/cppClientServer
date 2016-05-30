@@ -1,7 +1,7 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/epoll.h>
+#include <sys/event.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdio.h>
@@ -24,12 +24,14 @@ enum class FDType {
     client
 };
 std::map<int, FDType> fdMap;
+struct kevent events_to_monitor[MAX_EVENTS];
+int events_to_monitor_size = 1;
 
 int setNonblocking(int fd);
-int epollCtlAdd(int epfd, int listen_fd, unsigned int events);
+void kqAdd(int ident, short filter, unsigned short flags, void *const udata);
 
 int main() {
-    int events_fd = epoll_create(MAX_EVENTS);
+    int events_fd = kqueue();
     if (events_fd < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
@@ -55,16 +57,14 @@ int main() {
     }
     setNonblocking(listen_fd);
 
-    if (epollCtlAdd(events_fd, listen_fd, EPOLLIN) < 0) {
-        err(1, "%s:%d", __FILE__, __LINE__);
-    }
+    kqAdd(listen_fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0);
 
-    struct epoll_event events[MAX_EVENTS];
+    struct kevent events[MAX_EVENTS];
     while (1) {
-        int events_size = epoll_wait(events_fd, events, MAX_EVENTS, -1 /* Timeout */);
+        int events_size = kevent(events_fd, events_to_monitor, events_to_monitor_size, events, MAX_EVENTS, 0);
 
         for (int i = 0; i < events_size; ++i) {
-            int fd = events[i].data.fd;
+            int fd = (int) events[i].ident;
             auto fdMapIt = fdMap.find(fd);
             if (fdMapIt == fdMap.end()) {
                 warn("Error accepting");
@@ -83,13 +83,12 @@ int main() {
                     fdMap[client_fd] = FDType::client;
                     setNonblocking(client_fd);
 
-                    if (epollCtlAdd(events_fd, client_fd, EPOLLIN) < 0) {
-                        err(1, "%s:%d", __FILE__, __LINE__);
-                    }
+                    kqAdd(client_fd, EVFILT_READ, EV_ADD | EV_ENABLE, 0);
+                    kqAdd(client_fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0);
                     break;
                 }
                 case FDType::client: {
-                    if (events[i].events & EPOLLIN) {
+                    if (events[i].filter == EVFILT_READ) {
                         char buffer[BUFFER_SIZE];
                         int received = recv(fd, buffer, BUFFER_SIZE, 0);
                         if (received < 0) {
@@ -103,9 +102,6 @@ int main() {
                             warn("Could not write to stream");
                             continue;
                         }
-                    }
-                    if (events[i].events & EPOLLERR) {
-                        err(1, "%s:%d", __FILE__, __LINE__);
                     }
                     break;
                 }
@@ -122,9 +118,16 @@ int setNonblocking(int fd) {
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-int epollCtlAdd(int epfd, int listen_fd, unsigned int events) {
-    struct epoll_event e;
-    e.data.fd = listen_fd;
-    e.events = events;
-    return epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &e);
+void kqAdd(int ident, short filter, unsigned short flags, void *const udata) {
+    if (events_to_monitor_size == MAX_EVENTS) {
+        warn("To much events!");
+        return;
+    }
+    struct kevent *kep = &events_to_monitor[events_to_monitor_size++];
+    kep->ident = (uintptr_t) ident;
+    kep->filter = filter;
+    kep->flags = flags;
+    kep->fflags = 0;
+    kep->data = 0;
+    kep->udata = udata;
 }

@@ -3,10 +3,12 @@ project(ClientServer)
 
 include(cmake/IdentifyPlatform.cmake)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 
 add_subdirectory(SimpleClientServer)
 
 if (PLATFORM_LINUX)
     add_subdirectory(EpollServer)
 endif (PLATFORM_LINUX)
+
+add_subdirectory(KQServer)
