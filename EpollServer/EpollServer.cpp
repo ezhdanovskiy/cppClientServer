@@ -132,5 +132,5 @@ int epollCtlAdd(int epfd, int listen_fd, unsigned int events) {
 }
 
 std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
-    return o << "epoll_event{data.fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";
+    return o << "epoll_event{fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";
 }

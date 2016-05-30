@@ -21,6 +21,7 @@ int events_to_monitor_size = 1;
 
 int setNonblocking(int fd);
 void kqAdd(int ident, short filter, unsigned short flags, void *const udata);
+std::ostream& operator<<(std::ostream &o, const struct kevent &ev);
 
 int main() {
     int events_fd = kqueue();
@@ -42,7 +43,7 @@ int main() {
     fdMap[listen_fd] = FDType::listen;
 
     if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
-        err(1, "Error bind");
+        err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
     }
     if (listen(listen_fd, 10) < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
@@ -54,12 +55,14 @@ int main() {
     struct kevent events[MAX_EVENTS];
     while (1) {
         int events_size = kevent(events_fd, events_to_monitor, events_to_monitor_size, events, MAX_EVENTS, 0);
-
+        events_to_monitor_size = 0;
         for (int i = 0; i < events_size; ++i) {
-            int fd = (int) events[i].ident;
+            struct kevent &event = events[i];
+            LOG(event);
+            int fd = (int) event.ident;
             auto fdMapIt = fdMap.find(fd);
             if (fdMapIt == fdMap.end()) {
-                warn("Error accepting");
+                warn("Error accepting \t%s:%d", __FILE__, __LINE__);
                 continue;
             }
             switch (fdMapIt->second) {
@@ -67,8 +70,9 @@ int main() {
                     struct sockaddr_in client_addr;
                     socklen_t ca_len = sizeof(client_addr);
                     int client_fd = accept(fd, (struct sockaddr *) &client_addr, &ca_len);
+                    LOG("accept(" << fd << ") return " << client_fd);
                     if (client_fd < 0) {
-                        warn("Error accepting");
+                        warn("Error accepting \t%s:%d", __FILE__, __LINE__);
                         continue;
                     }
                     LOG("Client connected: " << inet_ntoa(client_addr.sin_addr));
@@ -80,18 +84,29 @@ int main() {
                     break;
                 }
                 case FDType::client: {
-                    if (events[i].filter == EVFILT_READ) {
+                    if (event.filter == EVFILT_READ) {
+                        if (event.flags & EV_EOF) {
+                            LOG("close(" << fd << ")");
+                            close(fd);
+                            break;
+                        }
+
                         char buffer[BUFFER_SIZE];
                         int received = recv(fd, buffer, BUFFER_SIZE, 0);
                         if (received < 0) {
-                            warn("Error reading from socket");
-                            continue;
+                            warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
+                            break;
+                        }
+                        if (received == 0) {
+                            LOG("close(" << fd << ")");
+                            close(fd);
+                            break;
                         } else {
                             buffer[received] = 0;
                             LOG("Reading " << received << " bytes: '" << buffer << "'");
                         }
                         if (send(fd, buffer, received, 0) != received) {
-                            warn("Could not write to stream");
+                            warn("Could not write to stream \t%s:%d", __FILE__, __LINE__);
                             continue;
                         }
                     }
@@ -113,7 +128,7 @@ int setNonblocking(int fd) {
 
 void kqAdd(int ident, short filter, unsigned short flags, void *const udata) {
     if (events_to_monitor_size == MAX_EVENTS) {
-        warn("To much events!");
+        warn("To much events! \t%s:%d", __FILE__, __LINE__);
         return;
     }
     struct kevent *kep = &events_to_monitor[events_to_monitor_size++];
@@ -123,4 +138,8 @@ void kqAdd(int ident, short filter, unsigned short flags, void *const udata) {
     kep->fflags = 0;
     kep->data = 0;
     kep->udata = udata;
+}
+
+std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
+    return o << "epoll_event{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
 }
