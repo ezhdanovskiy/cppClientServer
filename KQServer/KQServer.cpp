@@ -13,16 +13,8 @@
 #include <iostream>
 #include <map>
 
-#define LOG(chain) std::cout << chain << std::endl;
+#include <defs.h>
 
-#define MAX_EVENTS 10
-#define BUFFER_SIZE 1000
-
-enum class FDType {
-    events,
-    listen,
-    client
-};
 std::map<int, FDType> fdMap;
 struct kevent events_to_monitor[MAX_EVENTS];
 int events_to_monitor_size = 1;
@@ -108,6 +100,7 @@ int main() {
             }
         }
     }
+    close(events_fd);
 }
 
 int setNonblocking(int fd) {
