@@ -5,6 +5,9 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
+#include <arpa/inet.h>
+
+#include "defs.h"
 
 int main() {
     struct sockaddr_in servaddr;
@@ -14,19 +17,32 @@ int main() {
     servaddr.sin_addr.s_addr = htons(INADDR_ANY);
 
     int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
-    bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr));
-    listen(listen_fd, 10);
+    if (listen_fd < 0) {
+        err(1, "%s:%d", __FILE__, __LINE__);
+    }
 
-    int comm_fd = accept(listen_fd, (struct sockaddr *) NULL, NULL);
+    if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+        err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
+    }
+
+    if (listen(listen_fd, 10) < 0) {
+        err(1, "%s:%d", __FILE__, __LINE__);
+    }
+
+    struct sockaddr_in client_addr;
+    socklen_t ca_len = sizeof(client_addr);
+    int client_fd = accept(listen_fd, (struct sockaddr *) &client_addr, &ca_len);
+    LOG("accept(" << listen_fd << ") return " << client_fd);
+    LOG("Client connected: " << inet_ntoa(client_addr.sin_addr));
 
     char str[100];
     while (1) {
         bzero(str, 100);
-        if (read(comm_fd, str, 100) <= 0) {
+        if (read(client_fd, str, 100) <= 0) {
             break;
         }
 
         printf("Echoing back - %s", str);
-        write(comm_fd, str, strlen(str) + 1);
+        write(client_fd, str, strlen(str) + 1);
     }
 }

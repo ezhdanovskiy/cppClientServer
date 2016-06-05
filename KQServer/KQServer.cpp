@@ -6,7 +6,6 @@
 #include <netdb.h>
 #include <stdio.h>
 #include <string.h>
-#include <err.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <arpa/inet.h>

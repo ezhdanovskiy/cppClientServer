@@ -2,6 +2,7 @@
 #define CLIENTSERVER_DEFS_H
 
 #include <iostream>
+#include <err.h>
 
 #define LOG(chain) std::cout << chain << "\t" << __FILE__ << ":" << __LINE__ <<std::endl;
 

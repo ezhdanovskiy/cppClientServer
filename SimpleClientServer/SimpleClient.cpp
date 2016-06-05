@@ -15,9 +15,15 @@ int main(int argc, char **argv) {
     servaddr.sin_port = htons(22000);
     inet_pton(AF_INET, "127.0.0.1", &(servaddr.sin_addr));
 
-    int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    connect(sockfd, (struct sockaddr *) &servaddr, sizeof(servaddr));
-    LOG("connect(" << sockfd << ")");
+    int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock_fd < 0) {
+        err(1, "%s:%d", __FILE__, __LINE__);
+    }
+
+    if (connect(sock_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+        err(1, "%s:%d", __FILE__, __LINE__);
+    }
+    LOG("connect(" << sock_fd << ")");
 
     char sendline[100];
     char recvline[100];
@@ -27,15 +33,15 @@ int main(int argc, char **argv) {
         bzero(recvline, 100);
         fgets(sendline, 100, stdin); /*stdin = 0 , for standard input */
         if (strlen(sendline) >= strlen(quit) &&  strncmp(sendline, quit, strlen(quit)) == 0 ) {
-            LOG("close(" << sockfd << ")");
-            close(sockfd);
+            LOG("close(" << sock_fd << ")");
+            close(sock_fd);
             break;
         }
 
-        LOG("write(" << sockfd << ", '" << sendline << "')");
-        write(sockfd, sendline, strlen(sendline) + 1);
+        LOG("write(" << sock_fd << ", '" << sendline << "')");
+        write(sock_fd, sendline, strlen(sendline) + 1);
 
-        read(sockfd, recvline, 100);
-        LOG("read(" << sockfd << ", '" << recvline << "')");
+        read(sock_fd, recvline, 100);
+        LOG("read(" << sock_fd << ", '" << recvline << "')");
     }
 }
