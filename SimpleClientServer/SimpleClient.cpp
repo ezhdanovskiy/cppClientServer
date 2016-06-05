@@ -19,6 +19,7 @@ int main(int argc, char **argv) {
     if (sock_fd < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
+    LOG("create socket " << sock_fd);
 
     if (connect(sock_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
