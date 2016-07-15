@@ -3,6 +3,7 @@
 
 #include <iostream>
 #include <err.h>
+#include <stdlib.h>
 
 #define LOG(chain) std::cout << chain << "\t" << __FILE__ << ":" << __LINE__ <<std::endl;
 

@@ -9,11 +9,19 @@
 #include <defs.h>
 
 int main(int argc, char **argv) {
+    int port = 22000;
+    std::string host = "127.0.0.1";
+    if (argc >= 3) {
+        host = argv[1];
+        port = atoi(argv[2]);
+    }
+    LOG("connect to " << host << ":" << port << " argc=" << argc);
+
     struct sockaddr_in servaddr;
     bzero(&servaddr, sizeof servaddr);
     servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(22000);
-    inet_pton(AF_INET, "127.0.0.1", &(servaddr.sin_addr));
+    servaddr.sin_port = htons(port);
+    inet_pton(AF_INET, host.c_str(), &(servaddr.sin_addr));
 
     int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
