@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
                         warn("Error accepting \t%s:%d", __FILE__, __LINE__);
                         continue;
                     }
-                    LOG("Client connected: " << inet_ntoa(client_addr.sin_addr));
+                    LOG("Client connected: " << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port));
                     fdMap[client_fd] = FDType::client;
                     setNonblocking(client_fd);
 

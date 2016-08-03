@@ -14,3 +14,4 @@ if (PLATFORM_LINUX)
 endif (PLATFORM_LINUX)
 
 add_subdirectory(KQServer)
+add_subdirectory(KQTimer)

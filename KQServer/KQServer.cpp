@@ -87,7 +87,7 @@ int main(int argc, char **argv) {
                         warn("Error accepting \t%s:%d", __FILE__, __LINE__);
                         continue;
                     }
-                    LOG("Client connected: " << inet_ntoa(client_addr.sin_addr));
+                    LOG("Client connected: " << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port));
                     fdMap[client_fd] = FDType::client;
                     setNonblocking(client_fd);
 
@@ -153,5 +153,5 @@ void kqAdd(int ident, short filter, unsigned short flags, void *const udata) {
 }
 
 std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
-    return o << "epoll_event{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
+    return o << "kevent{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
 }
