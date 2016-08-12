@@ -7,7 +7,9 @@
 
 #include <defs.h>
 
-std::ostream& operator<<(std::ostream &o, const epoll_event &ev);
+std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
+    return o << "epoll_event{fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";
+}
 
 int main(int argc, char **argv) {
     int events_fd = epoll_create1(0);
@@ -72,7 +74,4 @@ int main(int argc, char **argv) {
     close(tfd1);
     close(tfd2);
     close(events_fd);
-}
-std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
-    return o << "epoll_event{fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";
 }

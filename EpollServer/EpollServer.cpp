@@ -12,9 +12,24 @@
 
 std::map<int, FDType> fdMap;
 
-int setNonblocking(int fd);
-int epollCtlAdd(int epfd, int listen_fd, unsigned int events);
-std::ostream& operator<<(std::ostream &o, const epoll_event &ev);
+int setNonblocking(int fd) {
+    int flags = 0;
+    if (-1 == (flags = fcntl(fd, F_GETFL, 0))) {
+        flags = 0;
+    }
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+int epollCtlAdd(int epfd, int listen_fd, unsigned int events) {
+    struct epoll_event e;
+    e.data.fd = listen_fd;
+    e.events = events;
+    return epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &e);
+}
+
+std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
+    return o << "epoll_event{fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";
+}
 
 int main(int argc, char **argv) {
     int port = 22000;
@@ -127,23 +142,4 @@ int main(int argc, char **argv) {
         }
     }
     close(events_fd);
-}
-
-int setNonblocking(int fd) {
-    int flags = 0;
-    if (-1 == (flags = fcntl(fd, F_GETFL, 0))) {
-        flags = 0;
-    }
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
-
-int epollCtlAdd(int epfd, int listen_fd, unsigned int events) {
-    struct epoll_event e;
-    e.data.fd = listen_fd;
-    e.events = events;
-    return epoll_ctl(epfd, EPOLL_CTL_ADD, listen_fd, &e);
-}
-
-std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
-    return o << "epoll_event{fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";
 }

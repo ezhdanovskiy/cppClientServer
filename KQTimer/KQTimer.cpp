@@ -6,7 +6,9 @@
 
 #include <defs.h>
 
-std::ostream& operator<<(std::ostream &o, const struct kevent &ev);
+std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
+    return o << "kevent{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
+}
 
 int main(int argc, char **argv) {
     int events_fd = kqueue();
@@ -31,8 +33,4 @@ int main(int argc, char **argv) {
         }
     }
     close(events_fd);
-}
-
-std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
-    return o << "kevent{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
 }

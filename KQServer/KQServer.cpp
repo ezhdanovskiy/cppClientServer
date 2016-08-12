@@ -18,9 +18,31 @@ std::map<int, FDType> fdMap;
 struct kevent events_to_monitor[MAX_EVENTS];
 int events_to_monitor_size = 1;
 
-int setNonblocking(int fd);
-void kqAdd(int ident, short filter, unsigned short flags, void *const udata);
-std::ostream& operator<<(std::ostream &o, const struct kevent &ev);
+int setNonblocking(int fd) {
+    int flags = 0;
+    if (-1 == (flags = fcntl(fd, F_GETFL, 0))) {
+        flags = 0;
+    }
+    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+}
+
+void kqAdd(int ident, short filter, unsigned short flags, void *const udata) {
+    if (events_to_monitor_size == MAX_EVENTS) {
+        warn("To much events! \t%s:%d", __FILE__, __LINE__);
+        return;
+    }
+    struct kevent *kep = &events_to_monitor[events_to_monitor_size++];
+    kep->ident = (uintptr_t) ident;
+    kep->filter = filter;
+    kep->flags = flags;
+    kep->fflags = 0;
+    kep->data = 0;
+    kep->udata = udata;
+}
+
+std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
+    return o << "kevent{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
+}
 
 int main(int argc, char **argv) {
     int port = 22000;
@@ -128,30 +150,4 @@ int main(int argc, char **argv) {
         }
     }
     close(events_fd);
-}
-
-int setNonblocking(int fd) {
-    int flags = 0;
-    if (-1 == (flags = fcntl(fd, F_GETFL, 0))) {
-        flags = 0;
-    }
-    return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-}
-
-void kqAdd(int ident, short filter, unsigned short flags, void *const udata) {
-    if (events_to_monitor_size == MAX_EVENTS) {
-        warn("To much events! \t%s:%d", __FILE__, __LINE__);
-        return;
-    }
-    struct kevent *kep = &events_to_monitor[events_to_monitor_size++];
-    kep->ident = (uintptr_t) ident;
-    kep->filter = filter;
-    kep->flags = flags;
-    kep->fflags = 0;
-    kep->data = 0;
-    kep->udata = udata;
-}
-
-std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
-    return o << "kevent{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";
 }
