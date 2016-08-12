@@ -12,6 +12,7 @@ add_subdirectory(SimpleClientServer)
 if (PLATFORM_LINUX)
     add_subdirectory(EpollServer)
     add_subdirectory(EpollTimer)
+    add_subdirectory(InotifyFileSystemMonitor)
 endif (PLATFORM_LINUX)
 
 add_subdirectory(KQServer)
