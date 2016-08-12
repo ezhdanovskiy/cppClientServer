@@ -17,36 +17,27 @@ std::ostream& operator<<(std::ostream &o, const inotify_event &ev) {
              << "}";
 }
 
-#define EVENT_SIZE  ( sizeof (struct inotify_event) )
-#define BUF_LEN     ( 1024 * ( EVENT_SIZE + 16 ) )
+#define INOTIFY_EVENT_SIZE  ( sizeof (struct inotify_event) )
+#define INOTIFY_EVENTS_BUF_LEN     ( 1024 * ( INOTIFY_EVENT_SIZE + 16 ) )
 
 int main(int argc, char **argv) {
-    char buffer[BUF_LEN];
+    int inotify_fd = inotify_init();
+    CHECK_INT_ERR(inotify_fd);
 
-    int fd = inotify_init();
-
-    if (fd < 0) {
-        perror("inotify_init");
-    }
-
-    int wd = inotify_add_watch(fd, "/tmp/inotify", IN_MODIFY | IN_CREATE | IN_DELETE);
+    int wd = inotify_add_watch(inotify_fd, "/tmp/inotify", IN_MODIFY | IN_CREATE | IN_DELETE);
+    CHECK_INT_ERR(wd);
     LOG1(wd);
-    if (wd < 0) {
-        err(1, "%s:%d", __FILE__, __LINE__);
-    }
 
+    char inotify_events[INOTIFY_EVENTS_BUF_LEN];
     bool notExitFlag = true;
     while (notExitFlag) {
-        long length = read(fd, buffer, BUF_LEN);
-
-        if (length < 0) {
-            perror("read");
-        }
+        long length = read(inotify_fd, inotify_events, INOTIFY_EVENTS_BUF_LEN);
+        CHECK_LONG_ERR(length);
         LOG1(length);
-        int i = 0;
-        while (i < length) {
-            LOG1(i);
-            struct inotify_event *event = (struct inotify_event *) &buffer[i];
+        int inotify_events_pos = 0;
+        while (inotify_events_pos < length) {
+            LOG1(inotify_events_pos);
+            struct inotify_event *event = (struct inotify_event *) &inotify_events[inotify_events_pos];
             LOG(*event);
 
             if (event->mask & IN_IGNORED) {
@@ -79,11 +70,11 @@ int main(int argc, char **argv) {
                     }
                 }
             }
-            i += EVENT_SIZE + event->len;
+            inotify_events_pos += INOTIFY_EVENT_SIZE + event->len;
         }
     }
-    inotify_rm_watch(fd, wd);
-    close(fd);
+    inotify_rm_watch(inotify_fd, wd);
+    close(inotify_fd);
 
-    exit(0);
+    return 0;
 }

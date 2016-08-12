@@ -13,6 +13,7 @@ if (PLATFORM_LINUX)
     add_subdirectory(EpollServer)
     add_subdirectory(EpollTimer)
     add_subdirectory(InotifyFileSystemMonitor)
+    add_subdirectory(EpollInotifyFileSystemMonitor)
 endif (PLATFORM_LINUX)
 
 add_subdirectory(KQServer)
