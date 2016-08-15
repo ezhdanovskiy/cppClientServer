@@ -9,6 +9,7 @@
 #include <map>
 
 #include <defs.h>
+#include <sstream>
 
 std::map<int, FDType> fdMap;
 
@@ -130,15 +131,26 @@ int main(int argc, char **argv) {
                         }
 
                         std::string ansHeader = "HTTP/1.1 200 OK\n\n";
-                        long sent = send(fd, ansHeader.c_str(), ansHeader.size(), 0);
-                        LOG("send " << sent << " bytes of " << ansHeader.size() << ": '\033[1m" << ansHeader << "\033[0m'");
-                        std::string ansBody = "<p>0123456789</p>";
-                        for (int i = 0; i < 18; ++i) {
-                            ansBody += ansBody;
+                        long sentAll = send(fd, ansHeader.c_str(), ansHeader.size(), 0);
+                        LOG("send " << sentAll << " bytes of " << ansHeader.size() << ": '\033[1m" << ansHeader << "\033[0m'");
+
+                        std::stringstream ansBody;
+                        ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HTTPEpollServer</title></head><body>";
+                        for (long j = 1; j < 10000000; ++j) {
+                            ansBody << j + 1000000000 << "<br>\n";
                         }
-                        sent = send(fd, ansBody.c_str(), ansBody.size(), 0);
-                        LOG("send " << sent << " bytes of " << ansBody.size() << " bytes");
-//                        LOG("send " << sent << " bytes of " << ansBody.size() << " bytes: '\033[1m" << ansBody << "\033[0m'");
+                        ansBody << "</body></html>";
+
+                        long sentBody = 0;
+                        while (sentBody < ansBody.str().size()) {
+                            long sent = send(fd, ansBody.str().c_str() + sentBody, ansBody.str().size() - sentBody, 0);
+                            CHECK_INT_ERR(sent);
+                            sentBody += sent;
+                            sentAll += sent;
+                            LOG("send " << sentAll << " bytes of " << ansBody.str().size() + ansHeader.size() << " bytes");
+                            usleep(500000);
+                        }
+
                         LOG("close(" << fd << ")");
                         close(fd);
                     }
