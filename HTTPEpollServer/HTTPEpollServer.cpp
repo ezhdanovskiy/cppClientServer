@@ -10,11 +10,12 @@
 
 #include <defs.h>
 #include <sstream>
+#include <memory>
 
 int events_fd;
 
 int setNonblocking(int fd) {
-    LOG(__func__ << "(" << fd << ")");
+    LOG(__func__ << "(fd=" << fd << ")");
     int flags = 0;
     if (-1 == (flags = fcntl(fd, F_GETFL, 0))) {
         flags = 0;
@@ -22,30 +23,42 @@ int setNonblocking(int fd) {
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
+std::ostream &operator<<(std::ostream &o, const epoll_event &ev) {
     return o << "epoll_event{ptr=" << std::hex << ev.data.ptr << " events=" << ev.events << std::dec << "}";
 }
 
 class BaseController {
-protected:
-    int fd;
 public:
-    BaseController(int fd) : fd(fd) {
-        LOG(__func__ << "()");
+    enum EventStatus {
+        empty,
+        inProcess,
+        finished,
+        error
+    };
+
+    BaseController(int fd) : fd(fd), status(EventStatus::empty) {
+        LOG(__func__ << "(fd=" << fd << ")");
+        if (fd > 0) {
+            status = EventStatus::inProcess;
+        }
     }
 
     int getFD() {
         return fd;
     }
 
-    virtual int dispatch(const epoll_event &event) = 0;
+    virtual EventStatus dispatch(const epoll_event &event) = 0;
 
     virtual ~BaseController() {
-        LOG(__func__);
+        LOG(__func__ << "() fd=" << fd);
         if (fd) {
             close(fd);
         }
     }
+
+protected:
+    int fd;
+    EventStatus status;
 };
 
 int epollCtlAdd(int epfd, BaseController *ptr, unsigned int events) {
@@ -59,27 +72,30 @@ int epollCtlAdd(int epfd, BaseController *ptr, unsigned int events) {
 class SocketController : public BaseController {
 public:
     SocketController(int fd) : BaseController(fd) {
-        LOG(__func__ << "()");
+        LOG(__func__ << "(fd=" << fd << ")");
     }
 
-    int dispatch(const epoll_event &event) override {
+    EventStatus dispatch(const epoll_event &event) override {
         LOG("SocketController::" << __func__ << "(" << event << ")");
-        if(event.events & EPOLLRDHUP) {
-            LOG("  close(" << fd << ")");
+        if (event.events & EPOLLRDHUP) {
+            LOG("  close(fd=" << fd << ")");
             close(fd);
-            return 0;
+            return EventStatus::finished;
+        }
+        if (event.events & EPOLLERR) {
+            return EventStatus::error;
         }
         if (event.events & EPOLLIN) {
             char buffer[BUFFER_SIZE];
             long received = recv(fd, buffer, BUFFER_SIZE, 0);
             if (received < 0) {
                 warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
-                return -1;
+                return EventStatus::error;
             }
             if (received == 0) {
-                LOG("  close(" << fd << ")");
+                LOG("  close(fd=" << fd << ")");
                 close(fd);
-                return 0;
+                return EventStatus::finished;
             } else {
                 buffer[received] = 0;
                 LOG("  Read " << received << " bytes: '\033[1m" << buffer << "\033[0m'");
@@ -106,25 +122,25 @@ public:
 //                usleep(500000);
             }
 
-            LOG("  epoll_ctl(" << events_fd << ", EPOLL_CTL_DEL, " << fd << ", NULL)");
-            epoll_ctl(events_fd, EPOLL_CTL_DEL, fd, NULL);
-
-            LOG("  close(" << fd << ")");
+            LOG("  close(fd=" << fd << ")");
             close(fd);
+            return EventStatus::finished;
         }
-        if (event.events & EPOLLERR) {
-            err(1, "\t%s:%d", __FILE__, __LINE__);
-        }
+        return EventStatus::finished;
     };
+
+    virtual ~SocketController() {
+        LOG(__func__ << "() fd=" << fd);
+    }
 };
 
 class AcceptController : public BaseController {
 public:
     AcceptController(int fd) : BaseController(fd) {
-        LOG(__func__ << "()");
+        LOG(__func__ << "(fd=" << fd << ")");
     }
 
-    int dispatch(const epoll_event &event) override {
+    EventStatus dispatch(const epoll_event &event) override {
         LOG("AcceptController::" << __func__ << "(" << event << ")");
         struct sockaddr_in client_addr;
         socklen_t ca_len = sizeof(client_addr);
@@ -132,17 +148,21 @@ public:
         LOG("  accept(" << fd << ") return " << client_fd);
         if (client_fd < 0) {
             warn("Error accepting \t%s:%d", __FILE__, __LINE__);
-            return -1;
+            return EventStatus::error;
         }
         LOG("  Client connected: " << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port));
         setNonblocking(client_fd);
 
-        if (epollCtlAdd(events_fd, new SocketController(client_fd), EPOLLIN|EPOLLRDHUP) < 0) {
+        if (epollCtlAdd(events_fd, new SocketController(client_fd), EPOLLIN | EPOLLRDHUP) < 0) {
             LOG("ERROR");
             err(1, "\t%s:%d", __FILE__, __LINE__);
         }
-        return 0;
+        return EventStatus::inProcess;
     };
+
+    virtual ~AcceptController() {
+        LOG(__func__ << "() fd=" << fd);
+    }
 };
 
 int main(int argc, char **argv) {
@@ -183,7 +203,8 @@ int main(int argc, char **argv) {
     }
     setNonblocking(listen_fd);
 
-    if (epollCtlAdd(events_fd, new AcceptController(listen_fd), EPOLLIN|EPOLLRDHUP) < 0) {
+    std::unique_ptr<AcceptController> acceptController(new AcceptController(listen_fd));
+    if (epollCtlAdd(events_fd, acceptController.get(), EPOLLIN | EPOLLRDHUP) < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
 
@@ -195,9 +216,20 @@ int main(int argc, char **argv) {
         for (int i = 0; i < events_size; ++i) {
             const epoll_event &event = events[i];
             LOG(event);
-            BaseController *controller = (BaseController*)event.data.ptr;
-            controller->dispatch(event);
-
+            BaseController *controller = (BaseController *) event.data.ptr;
+            BaseController::EventStatus eventStatus = controller->dispatch(event);
+            switch (eventStatus) {
+                case BaseController::EventStatus::finished: {
+                    LOG("delete " << std::hex << controller << std::dec);
+                    delete controller;
+                    break;
+                }
+                case BaseController::EventStatus::error: {
+                    LOG("delete " << std::hex << controller << std::dec);
+                    delete controller;
+                    break;
+                }
+            }
         }
     }
     close(events_fd);
