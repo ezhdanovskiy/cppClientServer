@@ -13,6 +13,7 @@
 #include <memory>
 
 int events_fd;
+#define BUFFER_SIZE_2 10
 
 int setNonblocking(int fd) {
     LOG(__func__ << "(fd=" << fd << ")");
@@ -70,6 +71,8 @@ int epollCtlAdd(int epfd, BaseController *ptr, unsigned int events) {
 }
 
 class SocketController : public BaseController {
+    std::string in;
+
 public:
     SocketController(int fd) : BaseController(fd) {
         LOG(__func__ << "(fd=" << fd << ")");
@@ -86,19 +89,22 @@ public:
             return EventStatus::error;
         }
         if (event.events & EPOLLIN) {
-            char buffer[BUFFER_SIZE];
-            long received = recv(fd, buffer, BUFFER_SIZE, 0);
+            char buffer[BUFFER_SIZE_2 + 1];
+            long received = recv(fd, buffer, BUFFER_SIZE_2, 0);
+            LOG1(received);
             if (received < 0) {
                 warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
                 return EventStatus::error;
             }
-            if (received == 0) {
-                LOG("  close(fd=" << fd << ")");
-                close(fd);
-                return EventStatus::finished;
-            } else {
+
+            if (received > 0) {
                 buffer[received] = 0;
+                in.append(buffer);
                 LOG("  Read " << received << " bytes: '\033[1m" << buffer << "\033[0m'");
+                LOG("  in='\033[1m" << in << "\033[0m'");
+                if (in.find("\r\n\r\n") == std::string::npos) {
+                    return EventStatus::inProcess;
+                }
             }
 
             std::string ansHeader = "HTTP/1.1 200 OK\n\n";
@@ -209,8 +215,9 @@ int main(int argc, char **argv) {
     }
 
     struct epoll_event events[MAX_EVENTS];
-    int iterations = 6;
+    int iterations = 16;
     while (iterations--) {
+        LOG("epoll_wait(" << events_fd << ")");
         int events_size = epoll_wait(events_fd, events, MAX_EVENTS, -1 /* Timeout */);
 
         for (int i = 0; i < events_size; ++i) {
