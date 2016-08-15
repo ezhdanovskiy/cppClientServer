@@ -25,7 +25,7 @@ int main(int argc, char **argv) {
     int inotify_fd = inotify_init();
     CHECK_INT_ERR(inotify_fd);
 
-    int wd = inotify_add_watch(inotify_fd, "/tmp/inotify", IN_MODIFY | IN_CREATE | IN_DELETE);
+    int wd = inotify_add_watch(inotify_fd, "/tmp/inotify/1.txt", IN_MODIFY | IN_CREATE | IN_DELETE | IN_MOVE | IN_MOVE_SELF);
     CHECK_INT_ERR(wd);
 
     int events_fd = epoll_create1(0);
@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
                 struct inotify_event *ievent = (struct inotify_event *) &inotify_events[inotify_events_pos];
                 LOG(*ievent);
 
-                if (ievent->mask & IN_IGNORED) {
+                if (ievent->mask & (IN_IGNORED | IN_MOVE_SELF)) {
                     notExitFlag = false;
                 }
 
