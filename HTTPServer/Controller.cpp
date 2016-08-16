@@ -116,7 +116,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
         LOG("  send " << sentAll << " bytes of " << ansHeader.size() << ": '\033[1m" << ansHeader << "\033[0m'");
 
         std::stringstream ansBody;
-        ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HTTPEpollServer</title></head><body>";
+        ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HTTPServer</title></head><body>";
         for (long j = 1; j < 1000000; ++j) {
             ansBody << j + 1000000000 << "<br>\n";
         }
