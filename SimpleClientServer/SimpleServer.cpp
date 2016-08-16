@@ -28,7 +28,7 @@ int main(int argc, char **argv) {
     servaddr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &(servaddr.sin_addr));
 
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int listen_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
@@ -38,11 +38,11 @@ int main(int argc, char **argv) {
         err(1, "setsockopt(SO_REUSEADDR) failed %s:%d", __FILE__, __LINE__);
     }
 
-    if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+    if (::bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
         err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
     }
 
-    if (listen(listen_fd, 10) < 0) {
+    if (::listen(listen_fd, 10) < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
 
@@ -55,11 +55,11 @@ int main(int argc, char **argv) {
     char str[100];
     while (1) {
         bzero(str, 100);
-        if (read(client_fd, str, 100) <= 0) {
+        if (::read(client_fd, str, 100) <= 0) {
             break;
         }
 
         printf("Echoing back - %s", str);
-        write(client_fd, str, strlen(str) + 1);
+        ::write(client_fd, str, strlen(str) + 1);
     }
 }

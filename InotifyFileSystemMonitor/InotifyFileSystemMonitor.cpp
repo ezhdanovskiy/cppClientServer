@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
     char inotify_events[INOTIFY_EVENTS_BUF_LEN];
     bool notExitFlag = true;
     while (notExitFlag) {
-        long length = read(inotify_fd, inotify_events, INOTIFY_EVENTS_BUF_LEN);
+        long length = ::read(inotify_fd, inotify_events, INOTIFY_EVENTS_BUF_LEN);
         CHECK_LONG_ERR(length);
         LOG1(length);
         int inotify_events_pos = 0;

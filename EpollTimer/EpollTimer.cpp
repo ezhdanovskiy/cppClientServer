@@ -59,14 +59,14 @@ int main(int argc, char **argv) {
     auto t0 = time(0);
     for (int i = 0; i < 10; ++i) {
         const int infinity = -1;
-        int events_size = epoll_wait(events_fd, events, MAX_EVENTS, infinity);
+        int events_size = ::epoll_wait(events_fd, events, MAX_EVENTS, infinity);
         if (events_size < 0) {
             err(1, "%s:%d", __FILE__, __LINE__);
         }
         LOG("time=" << time(0) - t0 << " events_size=" << events_size);
         for (int j = 0; j < events_size; ++j) {
             ssize_t s = -1;
-            read(events[j].data.fd, &s, sizeof(s));
+            ::read(events[j].data.fd, &s, sizeof(s));
             LOG(events[j] << " Timer triggered (" << s << ") time=" << time(0));
         }
     }

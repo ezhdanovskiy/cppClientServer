@@ -42,10 +42,10 @@ int main(int argc, char **argv) {
     bool notExitFlag = true;
     while (notExitFlag) {
         const int infinity = -1;
-        int event_size = epoll_wait(events_fd, events, MAX_EVENTS, infinity);
+        int event_size = ::epoll_wait(events_fd, events, MAX_EVENTS, infinity);
         CHECK_INT_ERR(event_size);
         for (int i = 0; i < event_size; ++i) {
-            long length = read(events[i].data.fd, inotify_events, INOTIFY_EVENTS_BUF_LEN);
+            long length = ::read(events[i].data.fd, inotify_events, INOTIFY_EVENTS_BUF_LEN);
             CHECK_LONG_ERR(length);
             LOG1(length);
             int inotify_events_pos = 0;

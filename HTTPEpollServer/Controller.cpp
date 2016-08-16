@@ -94,7 +94,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
     }
     if (event.events & EPOLLIN) {
         char buffer[BUFFER_SIZE_2 + 1];
-        long received = recv(fd, buffer, BUFFER_SIZE_2, 0);
+        long received = ::recv(fd, buffer, BUFFER_SIZE_2, 0);
         LOG1(received);
         if (received < 0) {
             warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
@@ -112,7 +112,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
         LOG("  in(" << in.size() << ")='\033[1m" << in << "\033[0m'");
 
         std::string ansHeader = "HTTP/1.1 200 OK\n\n";
-        long sentAll = send(fd, ansHeader.c_str(), ansHeader.size(), 0);
+        long sentAll = ::send(fd, ansHeader.c_str(), ansHeader.size(), 0);
         LOG("  send " << sentAll << " bytes of " << ansHeader.size() << ": '\033[1m" << ansHeader << "\033[0m'");
 
         std::stringstream ansBody;
@@ -124,7 +124,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
 
         long sentBody = 0;
         while (sentBody < ansBody.str().size()) {
-            long sent = send(fd, ansBody.str().c_str() + sentBody, ansBody.str().size() - sentBody, 0);
+            long sent = ::send(fd, ansBody.str().c_str() + sentBody, ansBody.str().size() - sentBody, 0);
             CHECK_LONG_ERR(sent);
             sentBody += sent;
             sentAll += sent;

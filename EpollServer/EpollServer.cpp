@@ -53,7 +53,7 @@ int main(int argc, char **argv) {
     servaddr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &(servaddr.sin_addr));
 
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int listen_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
@@ -64,10 +64,10 @@ int main(int argc, char **argv) {
         err(1, "setsockopt(SO_REUSEADDR) failed %s:%d", __FILE__, __LINE__);
     }
 
-    if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+    if (::bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
         err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
     }
-    if (listen(listen_fd, 10) < 0) {
+    if (::listen(listen_fd, 10) < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
     setNonblocking(listen_fd);
@@ -78,7 +78,7 @@ int main(int argc, char **argv) {
 
     struct epoll_event events[MAX_EVENTS];
     while (1) {
-        int events_size = epoll_wait(events_fd, events, MAX_EVENTS, -1 /* Timeout */);
+        int events_size = ::epoll_wait(events_fd, events, MAX_EVENTS, -1 /* Timeout */);
 
         for (int i = 0; i < events_size; ++i) {
             const epoll_event &event = events[i];
@@ -116,7 +116,7 @@ int main(int argc, char **argv) {
                     }
                     if (event.events & EPOLLIN) {
                         char buffer[BUFFER_SIZE];
-                        int received = recv(fd, buffer, BUFFER_SIZE, 0);
+                        int received = ::recv(fd, buffer, BUFFER_SIZE, 0);
                         if (received < 0) {
                             warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
                             break;
@@ -129,7 +129,7 @@ int main(int argc, char **argv) {
                             buffer[received] = 0;
                             LOG("Reading " << received << " bytes: '" << buffer << "'");
                         }
-                        if (send(fd, buffer, received, 0) != received) {
+                        if (::send(fd, buffer, received, 0) != received) {
                             warn("Could not write to stream \t%s:%d", __FILE__, __LINE__);
                             continue;
                         }

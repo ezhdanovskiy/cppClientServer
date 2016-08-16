@@ -20,9 +20,9 @@ int main(int argc, char **argv) {
     struct kevent events[MAX_EVENTS];
     EV_SET(&events[0], 1, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 5000, 0);
     EV_SET(&events[1], 2, EVFILT_TIMER, EV_ADD | EV_ENABLE, 0, 2000, 0);
-    kevent(events_fd, events, 2, NULL, 0, NULL);
+    ::kevent(events_fd, events, 2, NULL, 0, NULL);
     for (int i = 0; i < 5; ++i) {
-        int events_size = kevent(events_fd, NULL, 0, events, MAX_EVENTS, NULL);
+        int events_size = ::kevent(events_fd, NULL, 0, events, MAX_EVENTS, NULL);
         if (events_size < 0) {
             err(1, "%s:%d", __FILE__, __LINE__);
         }

@@ -65,7 +65,7 @@ int main(int argc, char **argv) {
     servaddr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &(servaddr.sin_addr));
 
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int listen_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
@@ -76,10 +76,10 @@ int main(int argc, char **argv) {
         err(1, "setsockopt(SO_REUSEADDR) failed %s:%d", __FILE__, __LINE__);
     }
 
-    if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+    if (::bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
         err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
     }
-    if (listen(listen_fd, 10) < 0) {
+    if (::listen(listen_fd, 10) < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
     setNonblocking(listen_fd);
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 
     struct kevent events[MAX_EVENTS];
     while (1) {
-        int events_size = kevent(events_fd, events_to_monitor, events_to_monitor_size, events, MAX_EVENTS, 0);
+        int events_size = ::kevent(events_fd, events_to_monitor, events_to_monitor_size, events, MAX_EVENTS, 0);
         events_to_monitor_size = 0;
         for (int i = 0; i < events_size; ++i) {
             struct kevent &event = events[i];
@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
                 continue;
             }
             switch (fdMapIt->second) {
-                case FDType::listen: {
+                case FDType::listen : {
                     struct sockaddr_in client_addr;
                     socklen_t ca_len = sizeof(client_addr);
                     int client_fd = accept(fd, (struct sockaddr *) &client_addr, &ca_len);
@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
                     kqAdd(client_fd, EVFILT_WRITE, EV_ADD | EV_DISABLE, 0);
                     break;
                 }
-                case FDType::client: {
+                case FDType::client : {
                     if (event.filter == EVFILT_READ) {
                         if (event.flags & EV_EOF) {
                             LOG("close(" << fd << ")");
@@ -126,7 +126,7 @@ int main(int argc, char **argv) {
                         }
 
                         char buffer[BUFFER_SIZE];
-                        int received = recv(fd, buffer, BUFFER_SIZE, 0);
+                        int received = ::recv(fd, buffer, BUFFER_SIZE, 0);
                         if (received < 0) {
                             warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
                             break;
@@ -139,7 +139,7 @@ int main(int argc, char **argv) {
                             buffer[received] = 0;
                             LOG("Reading " << received << " bytes: '" << buffer << "'");
                         }
-                        if (send(fd, buffer, received, 0) != received) {
+                        if (::send(fd, buffer, received, 0) != received) {
                             warn("Could not write to stream \t%s:%d", __FILE__, __LINE__);
                             continue;
                         }

@@ -34,7 +34,7 @@ int IOService::run(std::string host, int port) {
     servaddr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &(servaddr.sin_addr));
 
-    int listen_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int listen_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
@@ -44,10 +44,10 @@ int IOService::run(std::string host, int port) {
         err(1, "setsockopt(SO_REUSEADDR) failed %s:%d", __FILE__, __LINE__);
     }
 
-    if (bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
+    if (::bind(listen_fd, (struct sockaddr *) &servaddr, sizeof(servaddr)) < 0) {
         err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
     }
-    if (listen(listen_fd, 10) < 0) {
+    if (::listen(listen_fd, 10) < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
     setNonblocking(listen_fd);
@@ -61,7 +61,7 @@ int IOService::run(std::string host, int port) {
     int iterations = 16;
     while (iterations--) {
         LOG("epoll_wait(" << fdEvents << ")");
-        int events_size = epoll_wait(fdEvents, events, MAX_EVENTS, -1 /* Timeout */);
+        int events_size = ::epoll_wait(fdEvents, events, MAX_EVENTS, -1 /* Timeout */);
 
         for (int i = 0; i < events_size; ++i) {
             const epoll_event &event = events[i];
@@ -83,5 +83,7 @@ int IOService::run(std::string host, int port) {
         }
     }
 
+    LOG("close(" << listen_fd << ")");
+    close(listen_fd);
     return 0;
 }

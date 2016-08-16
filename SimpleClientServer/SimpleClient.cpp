@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
     servaddr.sin_port = htons(port);
     inet_pton(AF_INET, host.c_str(), &(servaddr.sin_addr));
 
-    int sock_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int sock_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (sock_fd < 0) {
         err(1, "%s:%d", __FILE__, __LINE__);
     }
@@ -51,9 +51,9 @@ int main(int argc, char **argv) {
         }
 
         LOG("write(" << sock_fd << ", '" << sendline << "')");
-        write(sock_fd, sendline, strlen(sendline) + 1);
+        ::write(sock_fd, sendline, strlen(sendline) + 1);
 
-        read(sock_fd, recvline, 100);
+        ::read(sock_fd, recvline, 100);
         LOG("read(" << sock_fd << ", '" << recvline << "')");
     }
 }
