@@ -1,6 +1,6 @@
-#include "HTTPEpollServer.h"
+#include "Server.h"
 
 int main(int argc, char **argv) {
-    HTTPServer server;
+    Server server;
     return server.start(argc, argv);
 }

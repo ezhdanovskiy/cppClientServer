@@ -1,8 +1,11 @@
 #pragma once
 
 #include "defs.h"
+#include "Logger.h"
 
 #include <sys/epoll.h>
+
+#include <string>
 
 class BaseController {
 public:

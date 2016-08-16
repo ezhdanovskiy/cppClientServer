@@ -1,33 +1,33 @@
+#include "IOService.h"
+
 #include "defs.h"
 #include "Controller.h"
-#include "HTTPEpollServer.h"
 
-#include <sys/epoll.h>
 #include <string.h>
-#include <err.h>
-#include <map>
 #include <memory>
 
+#include <sys/epoll.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-int HTTPServer::start(int argc, char **argv) {
-    int port = 22000;
-    std::string host = "127.0.0.1";
-    if (argc >= 3) {
-        host = argv[1];
-        port = atoi(argv[2]);
+IOService::IOService() : fdEvents(epoll_create1(0)) {
+    if (fdEvents == -1) {
+        err(1, "kqueue create error\t%s:%d", __FILE__, __LINE__);
     }
-    LOG("LISTEN " << host << ":" << port);
+    LOG(__func__ << "() fdEvents=" << fdEvents);
+}
 
-    events_fd = epoll_create(MAX_EVENTS);
-    if (events_fd < 0) {
-        err(1, "\t%s:%d", __FILE__, __LINE__);
+IOService::~IOService() {
+    if (fdEvents) {
+        LOG("  close(fdEvents=" << fdEvents << ")");
+        close(fdEvents);
     }
+}
 
+int IOService::run(std::string host, int port) {
     struct sockaddr_in servaddr;
     bzero(&servaddr, sizeof(servaddr));
     servaddr.sin_family = AF_INET;
@@ -53,21 +53,21 @@ int HTTPServer::start(int argc, char **argv) {
     setNonblocking(listen_fd);
 
     std::unique_ptr<AcceptController> acceptController(new AcceptController(listen_fd));
-    if (epollCtlAdd(events_fd, acceptController.get(), EPOLLIN | EPOLLRDHUP) < 0) {
+    if (epollCtlAdd(fdEvents, acceptController.get(), EPOLLIN | EPOLLRDHUP) < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
 
     struct epoll_event events[MAX_EVENTS];
     int iterations = 16;
     while (iterations--) {
-        LOG("epoll_wait(" << events_fd << ")");
-        int events_size = epoll_wait(events_fd, events, MAX_EVENTS, -1 /* Timeout */);
+        LOG("epoll_wait(" << fdEvents << ")");
+        int events_size = epoll_wait(fdEvents, events, MAX_EVENTS, -1 /* Timeout */);
 
         for (int i = 0; i < events_size; ++i) {
             const epoll_event &event = events[i];
             LOG(event);
             BaseController *controller = (BaseController *) event.data.ptr;
-            BaseController::EventStatus eventStatus = controller->dispatch(event, events_fd);
+            BaseController::EventStatus eventStatus = controller->dispatch(event, fdEvents);
             switch (eventStatus) {
                 case BaseController::EventStatus::finished: {
                     LOG("delete " << std::hex << controller << std::dec);
@@ -82,5 +82,6 @@ int HTTPServer::start(int argc, char **argv) {
             }
         }
     }
-    close(events_fd);
+
+    return 0;
 }
