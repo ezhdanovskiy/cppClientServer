@@ -25,7 +25,7 @@ public:
     virtual ~BaseController();
 
 protected:
-    int fd;
+    int fdSocket;
     EventStatus status;
 };
 

@@ -6,4 +6,5 @@ add_executable(HTTPEpollServer
     Server.cpp
     Controller.cpp
     IOService.cpp
+    Protocol.cpp
 )

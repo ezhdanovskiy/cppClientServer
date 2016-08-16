@@ -30,7 +30,7 @@ int epollCtlAdd(int epfd, BaseController *ptr, unsigned int events) {
     return epoll_ctl(epfd, EPOLL_CTL_ADD, ptr->getFD(), &e);
 }
 
-BaseController::BaseController(int fd) : fd(fd), status(EventStatus::empty) {
+BaseController::BaseController(int fd) : fdSocket(fd), status(EventStatus::empty) {
     LOG(__func__ << "(fd=" << fd << ")");
     if (fd > 0) {
         status = EventStatus::inProcess;
@@ -38,13 +38,13 @@ BaseController::BaseController(int fd) : fd(fd), status(EventStatus::empty) {
 }
 
 int BaseController::getFD() {
-    return fd;
+    return fdSocket;
 }
 
 BaseController::~BaseController() {
-    LOG(__func__ << "() fd=" << fd);
-    if (fd) {
-        close(fd);
+    LOG(__func__ << "() fd=" << fdSocket);
+    if (fdSocket) {
+        close(fdSocket);
     }
 }
 
@@ -57,8 +57,8 @@ BaseController::EventStatus AcceptController::dispatch(const epoll_event &event,
     LOG("AcceptController::" << __func__ << "(" << event << ")");
     struct sockaddr_in client_addr;
     socklen_t ca_len = sizeof(client_addr);
-    int client_fd = accept(fd, (struct sockaddr *) &client_addr, &ca_len);
-    LOG("  accept(" << fd << ") return " << client_fd);
+    int client_fd = accept(fdSocket, (struct sockaddr *) &client_addr, &ca_len);
+    LOG("  accept(" << fdSocket << ") return " << client_fd);
     if (client_fd < 0) {
         warn("Error accepting \t%s:%d", __FILE__, __LINE__);
         return EventStatus::error;
@@ -74,7 +74,7 @@ BaseController::EventStatus AcceptController::dispatch(const epoll_event &event,
 };
 
 AcceptController::~AcceptController() {
-    LOG(__func__ << "() fd=" << fd);
+    LOG(__func__ << "() fd=" << fdSocket);
 }
 
 
@@ -85,8 +85,8 @@ SocketController::SocketController(int fd) : BaseController(fd) {
 BaseController::EventStatus SocketController::dispatch(const epoll_event &event, int events_fd) {
     LOG("SocketController::" << __func__ << "(" << event << ")");
     if (event.events & EPOLLRDHUP) {
-        LOG("  close(fd=" << fd << ")");
-        close(fd);
+        LOG("  close(fd=" << fdSocket << ")");
+        close(fdSocket);
         return EventStatus::finished;
     }
     if (event.events & EPOLLERR) {
@@ -94,7 +94,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
     }
     if (event.events & EPOLLIN) {
         char buffer[BUFFER_SIZE_2 + 1];
-        long received = ::recv(fd, buffer, BUFFER_SIZE_2, 0);
+        long received = ::recv(fdSocket, buffer, BUFFER_SIZE_2, 0);
         LOG1(received);
         if (received < 0) {
             warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
@@ -112,7 +112,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
         LOG("  in(" << in.size() << ")='\033[1m" << in << "\033[0m'");
 
         std::string ansHeader = "HTTP/1.1 200 OK\n\n";
-        long sentAll = ::send(fd, ansHeader.c_str(), ansHeader.size(), 0);
+        long sentAll = ::send(fdSocket, ansHeader.c_str(), ansHeader.size(), 0);
         LOG("  send " << sentAll << " bytes of " << ansHeader.size() << ": '\033[1m" << ansHeader << "\033[0m'");
 
         std::stringstream ansBody;
@@ -124,7 +124,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
 
         long sentBody = 0;
         while (sentBody < ansBody.str().size()) {
-            long sent = ::send(fd, ansBody.str().c_str() + sentBody, ansBody.str().size() - sentBody, 0);
+            long sent = ::send(fdSocket, ansBody.str().c_str() + sentBody, ansBody.str().size() - sentBody, 0);
             CHECK_LONG_ERR(sent);
             sentBody += sent;
             sentAll += sent;
@@ -132,13 +132,13 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
 //                usleep(500000);
         }
 
-        LOG("  close(fd=" << fd << ")");
-        close(fd);
+        LOG("  close(fd=" << fdSocket << ")");
+        close(fdSocket);
         return EventStatus::finished;
     }
     return EventStatus::finished;
 };
 
 SocketController::~SocketController() {
-    LOG(__func__ << "() fd=" << fd);
+    LOG(__func__ << "() fd=" << fdSocket);
 }
