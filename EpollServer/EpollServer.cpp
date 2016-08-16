@@ -1,14 +1,15 @@
+#include "defs.h"
+#include "Logger.h"
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <netinet/in.h>
 #include <string.h>
-#include <err.h>
 #include <fcntl.h>
 #include <arpa/inet.h>
-#include <map>
 
-#include <defs.h>
+#include <map>
 
 std::map<int, FDType> fdMap;
 

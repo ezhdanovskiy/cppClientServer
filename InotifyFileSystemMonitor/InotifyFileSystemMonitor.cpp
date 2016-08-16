@@ -1,11 +1,12 @@
+#include "defs.h"
+#include "Logger.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/inotify.h>
 #include <unistd.h>
-
-#include <defs.h>
 
 std::ostream& operator<<(std::ostream &o, const inotify_event &ev) {
     return o << "inotify_event={"

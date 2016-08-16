@@ -1,11 +1,12 @@
+#include "defs.h"
+#include "Logger.h"
+
 #include <unistd.h>
 #include <sys/socket.h>
 #include <sys/epoll.h>
 #include <err.h>
 #include <map>
 #include <sys/timerfd.h>
-
-#include <defs.h>
 
 std::ostream& operator<<(std::ostream &o, const epoll_event &ev) {
     return o << "epoll_event{fd=" << ev.data.fd << " events=" << std::hex << ev.events << std::dec << "}";

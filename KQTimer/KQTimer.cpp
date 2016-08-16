@@ -1,10 +1,11 @@
+#include "defs.h"
+#include "Logger.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/event.h>
-#include <iostream>
-#include <map>
 
-#include <defs.h>
+#include <map>
 
 std::ostream& operator<<(std::ostream &o, const struct kevent &ev) {
     return o << "kevent{fd=" << ev.ident << " filter=" << ev.filter << " flags=" << std::hex << ev.flags << std::dec << "}";

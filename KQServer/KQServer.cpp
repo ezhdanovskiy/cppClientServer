@@ -1,3 +1,6 @@
+#include "defs.h"
+#include "Logger.h"
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -5,14 +8,11 @@
 #include <netinet/in.h>
 #include <netdb.h>
 #include <stdio.h>
-#include <string.h>
 #include <fcntl.h>
-#include <stdlib.h>
 #include <arpa/inet.h>
-#include <iostream>
-#include <map>
 
-#include <defs.h>
+#include <string.h>
+#include <map>
 
 std::map<int, FDType> fdMap;
 struct kevent events_to_monitor[MAX_EVENTS];
