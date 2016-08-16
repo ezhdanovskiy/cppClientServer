@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
-project(HTTPEpollServer)
+project(HttpServer)
 
-add_executable(HTTPEpollServer
+add_executable(HttpServer
     main.cpp
     Server.cpp
     Controller.cpp

@@ -58,7 +58,7 @@ int IOService::run(std::string host, int port) {
     }
 
     struct epoll_event events[MAX_EVENTS];
-    int iterations = 16;
+    int iterations = -16;
     while (iterations--) {
         LOG("epoll_wait(" << fdEvents << ")");
         int events_size = ::epoll_wait(fdEvents, events, MAX_EVENTS, -1 /* Timeout */);

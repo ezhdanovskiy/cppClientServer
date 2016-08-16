@@ -14,7 +14,7 @@ if (PLATFORM_LINUX)
     add_subdirectory(EpollTimer)
     add_subdirectory(InotifyFileSystemMonitor)
     add_subdirectory(EpollInotifyFileSystemMonitor)
-    add_subdirectory(HTTPServer)
+    add_subdirectory(HttpServer)
 endif (PLATFORM_LINUX)
 
 add_subdirectory(KQServer)

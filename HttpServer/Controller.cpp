@@ -22,12 +22,20 @@ std::ostream &operator<<(std::ostream &o, const epoll_event &ev) {
     return o << "epoll_event{ptr=" << std::hex << ev.data.ptr << " events=" << ev.events << std::dec << "}";
 }
 
-int epollCtlAdd(int epfd, BaseController *ptr, unsigned int events) {
+int epollCtlAdd(int fdEvents, BaseController *ptr, unsigned int events) {
     LOG(__func__ << "(ptr->getFD()=" << ptr->getFD() << ")");
     struct epoll_event e;
     e.data.ptr = ptr;
     e.events = events;
-    return epoll_ctl(epfd, EPOLL_CTL_ADD, ptr->getFD(), &e);
+    return epoll_ctl(fdEvents, EPOLL_CTL_ADD, ptr->getFD(), &e);
+}
+
+int epollCtlMod(int fdEvents, BaseController *ptr, unsigned int events) {
+    LOG(__func__ << "(ptr->getFD()=" << ptr->getFD() << ")");
+    struct epoll_event e;
+    e.data.ptr = ptr;
+    e.events = events;
+    return epoll_ctl(fdEvents, EPOLL_CTL_MOD, ptr->getFD(), &e);
 }
 
 BaseController::BaseController(int fd) : fdSocket(fd), status(EventStatus::empty) {
@@ -44,6 +52,7 @@ int BaseController::getFD() {
 BaseController::~BaseController() {
     LOG(__func__ << "() fd=" << fdSocket);
     if (fdSocket) {
+        LOG("  close(fd=" << fdSocket << ")");
         close(fdSocket);
     }
 }
@@ -53,20 +62,20 @@ AcceptController::AcceptController(int fd) : BaseController(fd) {
     LOG(__func__ << "(fd=" << fd << ")");
 }
 
-BaseController::EventStatus AcceptController::dispatch(const epoll_event &event, int events_fd) {
+BaseController::EventStatus AcceptController::dispatch(const epoll_event &event, int fdEvents) {
     LOG("AcceptController::" << __func__ << "(" << event << ")");
     struct sockaddr_in client_addr;
     socklen_t ca_len = sizeof(client_addr);
-    int client_fd = accept(fdSocket, (struct sockaddr *) &client_addr, &ca_len);
-    LOG("  accept(" << fdSocket << ") return " << client_fd);
-    if (client_fd < 0) {
+    int fdClient = accept(fdSocket, (struct sockaddr *) &client_addr, &ca_len);
+    LOG("  accept(" << fdSocket << ") return " << fdClient);
+    if (fdClient < 0) {
         warn("Error accepting \t%s:%d", __FILE__, __LINE__);
         return EventStatus::error;
     }
     LOG("  Client connected: " << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port));
-    setNonblocking(client_fd);
+    setNonblocking(fdClient);
 
-    if (epollCtlAdd(events_fd, new SocketController(client_fd), EPOLLIN | EPOLLRDHUP) < 0) {
+    if (epollCtlAdd(fdEvents, new SocketController(fdClient), EPOLLIN | EPOLLRDHUP) < 0) {
         LOG("ERROR");
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
@@ -82,16 +91,16 @@ SocketController::SocketController(int fd) : BaseController(fd) {
     LOG(__func__ << "(fd=" << fd << ")");
 }
 
-BaseController::EventStatus SocketController::dispatch(const epoll_event &event, int events_fd) {
+BaseController::EventStatus SocketController::dispatch(const epoll_event &event, int fdEvents) {
     LOG("SocketController::" << __func__ << "(" << event << ")");
     if (event.events & EPOLLRDHUP) {
-        LOG("  close(fd=" << fdSocket << ")");
-        close(fdSocket);
         return EventStatus::finished;
     }
+
     if (event.events & EPOLLERR) {
         return EventStatus::error;
     }
+
     if (event.events & EPOLLIN) {
         char buffer[BUFFER_SIZE_2 + 1];
         long received = ::recv(fdSocket, buffer, BUFFER_SIZE_2, 0);
@@ -111,31 +120,36 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
         }
         LOG("  in(" << in.size() << ")='\033[1m" << in << "\033[0m'");
 
-        std::string ansHeader = "HTTP/1.1 200 OK\n\n";
-        long sentAll = ::send(fdSocket, ansHeader.c_str(), ansHeader.size(), 0);
-        LOG("  send " << sentAll << " bytes of " << ansHeader.size() << ": '\033[1m" << ansHeader << "\033[0m'");
+        out = "HTTP/1.1 200 OK\n\n";
 
         std::stringstream ansBody;
-        ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HTTPServer</title></head><body>";
+        ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HttpServer</title></head><body>";
         for (long j = 1; j < 1000000; ++j) {
             ansBody << j + 1000000000 << "<br>\n";
         }
         ansBody << "</body></html>";
-
-        long sentBody = 0;
-        while (sentBody < ansBody.str().size()) {
-            long sent = ::send(fdSocket, ansBody.str().c_str() + sentBody, ansBody.str().size() - sentBody, 0);
-            CHECK_LONG_ERR(sent);
-            sentBody += sent;
-            sentAll += sent;
-            LOG("  send " << sentAll << " bytes of " << ansBody.str().size() + ansHeader.size() << " bytes");
-//                usleep(500000);
+        out += ansBody.str();
+        LOG("  out.size=" << out.size() << " bytes");
+        if (epollCtlMod(fdEvents, this, EPOLLOUT | EPOLLRDHUP) < 0) {
+            LOG("ERROR");
+            err(1, "\t%s:%d", __FILE__, __LINE__);
         }
-
-        LOG("  close(fd=" << fdSocket << ")");
-        close(fdSocket);
-        return EventStatus::finished;
+        return EventStatus::inProcess;
     }
+
+    if (event.events & EPOLLOUT) {
+        usleep(500000);
+        long sent = ::send(fdSocket, out.c_str() + sentAll, out.size() - sentAll, 0);
+        CHECK_LONG_ERR(sent);
+        sentAll += sent;
+        LOG("  send " << sentAll << " bytes of " << out.size() << " bytes");
+        if (sentAll < out.size()) {
+            return EventStatus::inProcess;
+        }
+    }
+
+    LOG("  close(fd=" << fdSocket << ")");
+    close(fdSocket);
     return EventStatus::finished;
 };
 
