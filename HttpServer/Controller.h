@@ -10,7 +10,6 @@
 class BaseController {
 public:
     enum EventStatus {
-        empty,
         inProcess,
         finished,
         error
@@ -26,7 +25,6 @@ public:
 
 protected:
     int fdSocket;
-    EventStatus status;
 };
 
 class AcceptController : public BaseController {
@@ -55,4 +53,4 @@ int setNonblocking(int fd);
 int epollCtlAdd(int fdEvents, BaseController *ptr, unsigned int events);
 int epollCtlMod(int fdEvents, BaseController *ptr, unsigned int events);
 
-std::ostream &operator<<(std::ostream &o, const epoll_event &ev);
+std::ostream &operator<<(std::ostream &o, const epoll_event &event);

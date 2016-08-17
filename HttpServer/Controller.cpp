@@ -7,8 +7,6 @@
 #include <arpa/inet.h>
 #include <sstream>
 
-#define BUFFER_SIZE_2 100
-
 int setNonblocking(int fd) {
     LOG(__func__ << "(fd=" << fd << ")");
     int flags = 0;
@@ -18,12 +16,13 @@ int setNonblocking(int fd) {
     return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
-std::ostream &operator<<(std::ostream &o, const epoll_event &ev) {
-    return o << "epoll_event{ptr=" << std::hex << ev.data.ptr << " events=" << ev.events << std::dec << "}";
+std::ostream &operator<<(std::ostream &o, const epoll_event &event) {
+    BaseController *controller = (BaseController *) event.data.ptr;
+    return o << "epoll_event{fd=" << controller->getFD() << std::hex << " events=" << event.events << " ptr=" << event.data.ptr << std::dec << "}";
 }
 
 int epollCtlAdd(int fdEvents, BaseController *ptr, unsigned int events) {
-    LOG(__func__ << "(ptr->getFD()=" << ptr->getFD() << ")");
+    LOG(__func__ << "(fd=" << ptr->getFD() << ")");
     struct epoll_event e;
     e.data.ptr = ptr;
     e.events = events;
@@ -31,18 +30,15 @@ int epollCtlAdd(int fdEvents, BaseController *ptr, unsigned int events) {
 }
 
 int epollCtlMod(int fdEvents, BaseController *ptr, unsigned int events) {
-    LOG(__func__ << "(ptr->getFD()=" << ptr->getFD() << ")");
+    LOG(__func__ << "(fd=" << ptr->getFD() << ")");
     struct epoll_event e;
     e.data.ptr = ptr;
     e.events = events;
     return epoll_ctl(fdEvents, EPOLL_CTL_MOD, ptr->getFD(), &e);
 }
 
-BaseController::BaseController(int fd) : fdSocket(fd), status(EventStatus::empty) {
+BaseController::BaseController(int fd) : fdSocket(fd) {
     LOG(__func__ << "(fd=" << fd << ")");
-    if (fd > 0) {
-        status = EventStatus::inProcess;
-    }
 }
 
 int BaseController::getFD() {
@@ -54,6 +50,7 @@ BaseController::~BaseController() {
     if (fdSocket) {
         LOG("  close(fd=" << fdSocket << ")");
         close(fdSocket);
+        fdSocket = 0;
     }
 }
 
@@ -87,7 +84,7 @@ AcceptController::~AcceptController() {
 }
 
 
-SocketController::SocketController(int fd) : BaseController(fd) {
+SocketController::SocketController(int fd) : BaseController(fd), sentAll(0) {
     LOG(__func__ << "(fd=" << fd << ")");
 }
 
@@ -102,8 +99,8 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
     }
 
     if (event.events & EPOLLIN) {
-        char buffer[BUFFER_SIZE_2 + 1];
-        long received = ::recv(fdSocket, buffer, BUFFER_SIZE_2, 0);
+        char buffer[BUFFER_SIZE + 1];
+        long received = ::recv(fdSocket, buffer, BUFFER_SIZE, 0);
         LOG1(received);
         if (received < 0) {
             warn("Error reading from socket \t%s:%d", __FILE__, __LINE__);
@@ -118,17 +115,18 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
                 return EventStatus::inProcess;
             }
         }
-        LOG("  in(" << in.size() << ")='\033[1m" << in << "\033[0m'");
+//        LOG("  in(" << in.size() << ")='\033[1m" << in << "\033[0m'");
 
         out = "HTTP/1.1 200 OK\n\n";
 
         std::stringstream ansBody;
         ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HttpServer</title></head><body>";
-        for (long j = 1; j < 1000000; ++j) {
+        for (long j = 1; j < 10000000; ++j) {
             ansBody << j + 1000000000 << "<br>\n";
         }
         ansBody << "</body></html>";
         out += ansBody.str();
+        LOG("  ansBody.size=" << ansBody.str().size() << " bytes");
         LOG("  out.size=" << out.size() << " bytes");
         if (epollCtlMod(fdEvents, this, EPOLLOUT | EPOLLRDHUP) < 0) {
             LOG("ERROR");
@@ -138,18 +136,16 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
     }
 
     if (event.events & EPOLLOUT) {
-        usleep(500000);
         long sent = ::send(fdSocket, out.c_str() + sentAll, out.size() - sentAll, 0);
         CHECK_LONG_ERR(sent);
         sentAll += sent;
         LOG("  send " << sentAll << " bytes of " << out.size() << " bytes");
         if (sentAll < out.size()) {
+//            usleep(100000);
             return EventStatus::inProcess;
         }
     }
 
-    LOG("  close(fd=" << fdSocket << ")");
-    close(fdSocket);
     return EventStatus::finished;
 };
 

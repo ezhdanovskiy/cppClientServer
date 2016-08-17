@@ -60,12 +60,13 @@ int IOService::run(std::string host, int port) {
     struct epoll_event events[MAX_EVENTS];
     int iterations = -16;
     while (iterations--) {
-        LOG("epoll_wait(" << fdEvents << ")");
-        int events_size = ::epoll_wait(fdEvents, events, MAX_EVENTS, -1 /* Timeout */);
+//        LOG("epoll_wait(" << fdEvents << ")");
+        int eventsSize = ::epoll_wait(fdEvents, events, MAX_EVENTS, -1 /* Timeout */);
+        LOG1(eventsSize);
 
-        for (int i = 0; i < events_size; ++i) {
+        for (int i = 0; i < eventsSize; ++i) {
             const epoll_event &event = events[i];
-            LOG(event);
+//            LOG(event);
             BaseController *controller = (BaseController *) event.data.ptr;
             BaseController::EventStatus eventStatus = controller->dispatch(event, fdEvents);
             switch (eventStatus) {
