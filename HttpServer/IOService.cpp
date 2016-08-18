@@ -53,6 +53,7 @@ int IOService::run(std::string host, int port) {
     setNonblocking(listen_fd);
 
     std::unique_ptr<AcceptController> acceptController(new AcceptController(listen_fd));
+    LOG("new AcceptController(" << std::hex << acceptController.get() << std::dec << ")");
     if (epollCtlAdd(fdEvents, acceptController.get(), EPOLLIN | EPOLLRDHUP) < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }

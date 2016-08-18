@@ -72,7 +72,9 @@ BaseController::EventStatus AcceptController::dispatch(const epoll_event &event,
     LOG("  Client connected: " << inet_ntoa(client_addr.sin_addr) << ":" << ntohs(client_addr.sin_port));
     setNonblocking(fdClient);
 
-    if (epollCtlAdd(fdEvents, new SocketController(fdClient), EPOLLIN | EPOLLRDHUP) < 0) {
+    SocketController *socketController = new SocketController(fdClient);
+    LOG("  new SocketController(" << std::hex << socketController << std::dec << ")");
+    if (epollCtlAdd(fdEvents, socketController, EPOLLIN | EPOLLRDHUP) < 0) {
         LOG("ERROR");
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }
@@ -110,23 +112,38 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
         if (received > 0) {
             buffer[received] = 0;
             in.append(buffer);
-            LOG("  Read " << received << " bytes: '\033[1m" << buffer << "\033[0m'");
+            LOG("  Read " << received << " bytes: '\033[1m" << buffer << "\033[0m' from fd=" << fdSocket);
             if (in.find("\r\n\r\n") == std::string::npos) {
                 return EventStatus::inProcess;
             }
         }
 //        LOG("  in(" << in.size() << ")='\033[1m" << in << "\033[0m'");
 
-        out = "HTTP/1.1 200 OK\n\n";
+//        {
+//            out = "HTTP/1.1 200 OK\n\n";
+//            std::stringstream ansBody;
+//            ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HttpServer</title></head><body>";
+//            for (long j = 1; j < 100000; ++j) {
+//                ansBody << j + 1000000000 << "<br>\n";
+//            }
+//            ansBody << "</body></html>";
+//            LOG("  ansBody.size=" << ansBody.str().size() << " bytes");
+//            out += ansBody.str();
+//        }
+        out =   "HTTP/1.1 200 OK\n"
+                "\n"
+                "<!DOCTYPE HTML>\n"
+                "<html>\n"
+                "  <head>\n"
+                "    <meta charset=\"utf-8\">\n"
+                "    <title>HttpServer</title>\n"
+                "  </head>\n"
+                "  <body>\n"
+                "    Hello world!\n"
+                "  </body>\n"
+                "</html>\n";
 
-        std::stringstream ansBody;
-        ansBody << "<!DOCTYPE HTML><html><head><meta charset=\"utf-8\"><title>HttpServer</title></head><body>";
-        for (long j = 1; j < 10000000; ++j) {
-            ansBody << j + 1000000000 << "<br>\n";
-        }
-        ansBody << "</body></html>";
-        out += ansBody.str();
-        LOG("  ansBody.size=" << ansBody.str().size() << " bytes");
+
         LOG("  out.size=" << out.size() << " bytes");
         if (epollCtlMod(fdEvents, this, EPOLLOUT | EPOLLRDHUP) < 0) {
             LOG("ERROR");
@@ -139,7 +156,7 @@ BaseController::EventStatus SocketController::dispatch(const epoll_event &event,
         long sent = ::send(fdSocket, out.c_str() + sentAll, out.size() - sentAll, 0);
         CHECK_LONG_ERR(sent);
         sentAll += sent;
-        LOG("  send " << sentAll << " bytes of " << out.size() << " bytes");
+        LOG("  send " << sentAll << " bytes of " << out.size() << " bytes to fd=" << fdSocket);
         if (sentAll < out.size()) {
 //            usleep(100000);
             return EventStatus::inProcess;
