@@ -41,7 +41,7 @@ int main(int argc, char **argv) {
     }
     LOG("LISTEN " << host << ":" << port);
 
-    int events_fd = epoll_create(MAX_EVENTS);
+    int events_fd = epoll_create1(0);
     if (events_fd < 0) {
         err(1, "\t%s:%d", __FILE__, __LINE__);
     }

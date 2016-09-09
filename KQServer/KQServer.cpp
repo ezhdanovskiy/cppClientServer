@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
 
     int events_fd = kqueue();
     if (events_fd < 0) {
-        err(1, "%s:%d", __FILE__, __LINE__);
+        err(1, "\t%s:%d", __FILE__, __LINE__);
     }
     fdMap[events_fd] = FDType::events;
 
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
 
     int listen_fd = ::socket(AF_INET, SOCK_STREAM, 0);
     if (listen_fd < 0) {
-        err(1, "%s:%d", __FILE__, __LINE__);
+        err(1, "\t%s:%d", __FILE__, __LINE__);
     }
     fdMap[listen_fd] = FDType::listen;
 
@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
         err(1, "Error bind \t%s:%d", __FILE__, __LINE__);
     }
     if (::listen(listen_fd, 10) < 0) {
-        err(1, "%s:%d", __FILE__, __LINE__);
+        err(1, "\t%s:%d", __FILE__, __LINE__);
     }
     setNonblocking(listen_fd);
 
