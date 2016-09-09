@@ -19,3 +19,5 @@ endif (PLATFORM_LINUX)
 
 add_subdirectory(KQServer)
 add_subdirectory(KQTimer)
+
+add_subdirectory(LockF)
